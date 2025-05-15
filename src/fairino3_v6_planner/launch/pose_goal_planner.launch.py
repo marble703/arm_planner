@@ -11,7 +11,9 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     # 声明参数
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
-    
+    # 是否使用RViz
+    with_rviz = LaunchConfiguration('with_rviz', default='false')
+
     # 获取各项参数
     fairino3_v6_moveit2_config_dir = get_package_share_directory('fairino3_v6_moveit2_config')
     fairino_description_dir = get_package_share_directory('fairino_description')
@@ -109,6 +111,7 @@ def generate_launch_description():
     rviz_node = Node(
         package='rviz2',
         executable='rviz2',
+        condition=IfCondition(with_rviz),
         name='rviz2',
         output='screen',
         arguments=['-d', rviz_config_file],
@@ -141,10 +144,14 @@ def generate_launch_description():
     
     return LaunchDescription([
         DeclareLaunchArgument(
+            'with_rviz', 
+            default_value='false', 
+            description='是否启动RViz'),
+        DeclareLaunchArgument(
             'use_sim_time',
             default_value='true',
             description='使用仿真时间（如果为false则使用系统时间）'),
-            
+
         # 添加robot_state_publisher
         robot_state_publisher_node,
         
