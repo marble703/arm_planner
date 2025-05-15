@@ -83,6 +83,39 @@ ros2 run fairino3_v6_planner test_start_and_goal.py \
 
 ---
 
+## 外部话题接口
+
+本包暴露了以下 ROS 2 话题，可供外部节点发布/订阅，灵活触发规划并获取结果：
+
+### 订阅（Trigger Planning）
+- `/target_pose` (geometry_msgs/PoseStamped)：接收末端期望位姿，收到消息后触发笛卡尔空间规划。
+  示例：
+  ```bash
+  ros2 topic pub /target_pose geometry_msgs/msg/PoseStamped \
+    "{ header: { frame_id: 'base_link' }, pose: { position: { x: 0.3, y: 0.0, z: 0.4 }, orientation: { x: 0.0, y: 0.0, z: 0.0, w: 1.0 } } }"
+  ```
+- `/joint_states` (sensor_msgs/JointState)：可选，发布一组关节角度以更新起始状态后再触发位姿规划。
+  示例：
+  ```bash
+  ros2 topic pub /joint_states sensor_msgs/msg/JointState \
+    "{ header: { frame_id: 'base_link' }, name: ['j1','j2','j3','j4','j5','j6'], position: [0,0,0,0,0,0] }"
+  ```
+
+### 发布（Planning Results）
+- `/display_trajectory` (moveit_msgs/DisplayTrajectory)：规划结果完整轨迹，可在 RViz 中可视化。
+- `/trajectory_poses` (geometry_msgs/PoseArray)：提取后的若干关键末端位姿点，用于外部可视化或后续处理。
+- `/planning_success` (std_msgs/Bool)：规划是否成功（true/false）。
+- `/planning_status` (std_msgs/String)：规划状态文字描述，例如 "规划成功" 或 "规划失败"。
+
+要查看并调试这些话题，可以使用：
+```bash
+ros2 topic echo /planning_success
+ros2 topic echo /planning_status
+ros2 topic echo /trajectory_poses
+```
+
+---
+
 ## 项目结构
 
 ```
@@ -93,5 +126,3 @@ arm_planner/
 │  └─ fairino3_v6_planner/           # 规划节点、脚本、launch
 └─ README.md                         # 本文档
 ```
-
-更多细节请参考各包的 `package.xml`、`CMakeLists.txt` 和源码注释。祝你使用愉快！
