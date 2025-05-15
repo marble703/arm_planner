@@ -1,0 +1,15 @@
+build
+install
+log
+
+__pycache__
+.vscode
+.idea
+.cache
+
+Data
+Camera
+debug
+test
+
+gdb.txt
