@@ -2,8 +2,8 @@
 
 本项目基于 ROS 2（Humble）和 MoveIt 2 搭建机械臂运动规划系统，包含以下主要模块：
 
-1. **fairino_description**：机器人模型描述包，包含 URDF/xacro 文件，用于定义机械臂的几何和物理属性。
-2. **fairino3_v6_moveit2_config**：MoveIt 2 配置包，自动生成的配置（SRDF、关节限位、运动学、控制器、OMPL 规划器等），并包含 `move_group` 和 `rviz2` 的启动文件。
+1. **fairino_description**：机器人模型描述包，包含 URDF/xacro 文件，用于定义机械臂的几何和物理属性。此包原本包含多个机械臂描述，由于本项目仅需要规划一种机械臂故仅保留 `fairino3_v6` 描述文件。
+2. **fairino3_v6_moveit2_config**：MoveIt 2 配置包，使用 `moveit_setup_assistant` 自动生成的配置（SRDF、关节限位、运动学、控制器、OMPL 规划器等），并包含 `move_group` 和 `rviz2` 的启动文件。
 3. **fairino3_v6_planner**：自定义规划器节点和测试脚本：
    - C++ 实现 `PoseGoalPlanner` 节点，订阅目标位姿 (`target_pose`)，调用 MoveIt 2 接口进行路径规划，并发布规划轨迹。
    - `scripts/` 目录下包含三种测试脚本：
@@ -31,12 +31,13 @@ source install/setup.bash
 运行以下命令，启动 MoveIt 2 `move_group`、RViz2 和自定义规划节点：
 
 ```bash
+source install/setup.bash
 ros2 launch fairino3_v6_planner pose_goal_planner.launch.py
 ```
 
 - `use_sim_time` 参数默认为 `true`，可通过 `-p use_sim_time:=false` 切换至系统时钟。
-- `with_rviz` 参数默认为 `true`, 可通过 `with_rviz:=false` 关闭可视化界面
-- 启动后可在 RViz2 中查看机器人模型并使用 Motion Planning 面板进行交互式规划。
+- `with_rviz` 参数默认为 `false`, 可通过 `with_rviz:=true` 关闭可视化界面
+- 启动可视化界面后可在 RViz2 中查看机器人模型并使用 Motion Planning 面板进行交互式规划。
 
 ---
 
@@ -45,7 +46,6 @@ ros2 launch fairino3_v6_planner pose_goal_planner.launch.py
 ### 1. 发布笛卡尔空间位姿目标
 
 ```bash
-# 直接运行脚本（确保已 source 环境）
 python3 src/fairino3_v6_planner/scripts/send_pose_goal.py
 ```
 
