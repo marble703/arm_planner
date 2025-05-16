@@ -23,6 +23,11 @@ public:
     ~PoseGoalPlanner() = default;
 
 private:
+    bool debug_;
+
+    // 最大轨迹点数
+    size_t max_points_;
+
     // 回调函数：处理接收到的位姿目标
     void poseGoalCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
 

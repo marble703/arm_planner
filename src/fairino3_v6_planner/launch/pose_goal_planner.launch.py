@@ -17,6 +17,7 @@ def generate_launch_description():
     # 获取各项参数
     fairino3_v6_moveit2_config_dir = get_package_share_directory('fairino3_v6_moveit2_config')
     fairino_description_dir = get_package_share_directory('fairino_description')
+    fairino3_v6_planner_dir = get_package_share_directory('fairino3_v6_planner')
     
     # 加载机器人描述文件
     robot_urdf_path = os.path.join(fairino_description_dir, 'urdf', 'fairino3_v6.urdf')
@@ -50,6 +51,11 @@ def generate_launch_description():
     ompl_yaml = os.path.join(fairino3_v6_moveit2_config_dir, 'config', 'ompl_planning.yaml')
     with open(ompl_yaml, 'r') as file:
         ompl_config = yaml.safe_load(file)
+    
+    # 加载规划器自定义配置
+    planner_yaml = os.path.join(fairino3_v6_planner_dir, 'config', 'config.yaml')
+    with open(planner_yaml, 'r') as file:
+        planner_config = yaml.safe_load(file)
     
     # 规划器配置
     planning_pipelines_config = {
@@ -132,6 +138,8 @@ def generate_launch_description():
             {'use_sim_time': use_sim_time},
             {'planning_group': 'fairino3_v6_group'},
             {'end_effector_link': 'wrist3_link'},
+            # 从配置文件中加载参数
+            planner_config,
             robot_description,
             robot_description_semantic,
             kinematics_config,

@@ -1,0 +1,6 @@
+/**:
+  ros__parameters:
+    # 是否开启调试模式
+    debug: true
+    # 最大轨迹点数量
+    max_points: 30

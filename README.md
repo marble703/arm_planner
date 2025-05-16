@@ -10,6 +10,8 @@
      - `send_pose_goal.py`：发布笛卡尔空间目标位姿（`target_pose`）。
      - `send_joint_goal.py`：发布关节空间目标 (`joint_states`) 消息，用于测试关节规划。
      - `test_start_and_goal.py`：综合测试，先发布初始关节状态，再发布目标位姿，完成一次端到端的规划流程。
+   - `config/` 目录下包含可配置参数：
+     - `config.yaml`：包含规划器配置参数，如最大轨迹点数量(max_points)等。
 
 ---
 
@@ -113,6 +115,27 @@ ros2 run fairino3_v6_planner test_start_and_goal.py \
 ros2 topic echo /planning_success
 ros2 topic echo /planning_status
 ros2 topic echo /trajectory_poses
+```
+
+---
+
+## 配置参数
+
+规划器支持通过配置文件调整参数，主要配置参数包含在 `src/fairino3_v6_planner/config/config.yaml` 文件中：
+
+```yaml
+/**:
+  ros__parameters:
+    # 是否开启调试模式
+    debug: false
+    # 最大轨迹点数量，用于限制发布的轨迹关键点数量
+    max_points: 30
+```
+
+可以通过修改配置文件调整这些参数，或在启动节点时通过参数覆盖：
+
+```bash
+ros2 launch fairino3_v6_planner pose_goal_planner.launch.py max_points:=50
 ```
 
 ---
