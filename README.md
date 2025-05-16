@@ -46,7 +46,7 @@ ros2 launch fairino3_v6_planner pose_goal_planner.launch.py
 ```
 
 - `use_sim_time` 参数默认为 `true`，可通过 `-p use_sim_time:=false` 切换至系统时钟。
-- `with_rviz` 参数默认为 `false`, 可通过 `with_rviz:=true` 关闭可视化界面
+- `with_rviz` 参数默认为 `false`, 可通过 `with_rviz:=true` 启动可视化界面
 - 启动可视化界面后可在 RViz2 中查看机器人模型并使用 Motion Planning 面板进行交互式规划。
 
 ---
