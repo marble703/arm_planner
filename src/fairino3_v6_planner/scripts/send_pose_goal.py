@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# 导入必要的库
+
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped

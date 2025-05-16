@@ -14,7 +14,7 @@ PoseGoalPlanner::PoseGoalPlanner(const rclcpp::NodeOptions& options):
     this->declare_parameter("planning_group", "fairino3_v6_group");
     this->declare_parameter("end_effector_link", "wrist3_link");
     this->declare_parameter("max_points", 100); // 默认值为100
-    this->declare_parameter("debug", false); // 默认值为false
+    this->declare_parameter("debug", false);    // 默认值为false
 
     planning_group_ = this->get_parameter("planning_group").as_string();
     end_effector_link_ = this->get_parameter("end_effector_link").as_string();
@@ -204,13 +204,10 @@ bool PoseGoalPlanner::planToPose(
         trajectory_poses.header.stamp = this->now();
         trajectory_poses.header.frame_id = target_pose.header.frame_id;
 
-        if(debug_){
-            RCLCPP_DEBUG(
-                this->get_logger(),
-                "提取的轨迹关键点: "
-            );
+        if (debug_) {
+            RCLCPP_DEBUG(this->get_logger(), "提取的轨迹关键点: ");
             int i = 0;
-            for (const auto& pose : trajectory_poses.poses) {
+            for (const auto& pose: trajectory_poses.poses) {
                 RCLCPP_DEBUG(
                     this->get_logger(),
                     "关键点:%d \n %f, %f, %f\n",

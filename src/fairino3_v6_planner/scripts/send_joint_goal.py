@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# 导入必要的库
+
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
@@ -31,14 +31,14 @@ def main():
         # 示例1: 使用SRDF中定义的pos1关节配置
         node.publish_joints([2.4468, -1.6214, 1.5465, -1.5877, -1.6368, 0.0])
 
-        # 等待10秒，给规划和执行留出时间
-        time.sleep(10.0)
+        # 等待 5 秒，给规划和执行留出时间
+        time.sleep(5.0)
         
-        # 示例2: 使用SRDF中定义的pos2关节配置
-        node.publish_joints([0.8606, -1.4189, 1.5465, -1.7227, -1.5018, 0.0])
+        # # 示例2: 使用SRDF中定义的pos2关节配置
+        # node.publish_joints([0.8606, -1.4189, 1.5465, -1.7227, -1.5018, 0.0])
         
-        # 继续等待
-        time.sleep(10.0)
+        # # 继续等待
+        # time.sleep(5.0)
         
         # 示例3: 回到初始姿态
         node.publish_joints([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
