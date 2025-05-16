@@ -17,9 +17,17 @@ find_package(tf2_eigen REQUIRED)
 find_package(moveit_msgs REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 find_package(moveit_core REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
 # 包含目录
 include_directories(include)
+
+# 生成自定义服务
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "srv/GetTrajectoryPoses.srv"
+  DEPENDENCIES geometry_msgs
+)
+rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
 # 添加可执行文件
 add_executable(pose_goal_planner src/pose_goal_planner.cpp)
@@ -32,6 +40,7 @@ ament_target_dependencies(pose_goal_planner
   tf2_eigen
   moveit_core
 )
+target_link_libraries(pose_goal_planner "${cpp_typesupport_target}")
 
 # 安装可执行文件
 install(TARGETS

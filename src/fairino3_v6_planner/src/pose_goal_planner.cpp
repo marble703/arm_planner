@@ -5,6 +5,7 @@
 #include <sstream>
 #include <tf2_eigen/tf2_eigen.hpp>
 #include <thread>
+#include "fairino3_v6_planner/srv/get_trajectory_poses.hpp"
 
 namespace fairino3_v6_planner {
 
@@ -62,19 +63,25 @@ PoseGoalPlanner::PoseGoalPlanner(const rclcpp::NodeOptions& options):
             "display_trajectory",
             10
         );
-    trajectory_poses_publisher_ =
-        this->create_publisher<geometry_msgs::msg::PoseArray>(
-            "trajectory_poses",
-            10
-        );
     planning_success_publisher_ =
         this->create_publisher<std_msgs::msg::Bool>("planning_success", 10);
     planning_status_publisher_ =
         this->create_publisher<std_msgs::msg::String>("planning_status", 10);
+        
+    // 创建轨迹关键点服务
+    trajectory_poses_service_ = this->create_service<fairino3_v6_planner::srv::GetTrajectoryPoses>(
+        "get_trajectory_poses",
+        std::bind(
+            &PoseGoalPlanner::handleGetTrajectoryPoses,
+            this,
+            std::placeholders::_1,
+            std::placeholders::_2
+        )
+    );
 
     RCLCPP_INFO(
         this->get_logger(),
-        "已订阅 'target_pose' 话题并创建结果发布话题"
+        "已订阅 'target_pose' 话题，创建结果发布话题，并提供'get_trajectory_poses'服务"
     );
 
     // 等待一段时间以确保MoveIt组件完全初始化
@@ -240,7 +247,7 @@ bool PoseGoalPlanner::planToPose(
             }
         }
 
-        trajectory_poses_publisher_->publish(trajectory_poses);
+        // 不再发布轨迹关键点，改为通过服务提供
     } else {
         RCLCPP_ERROR(this->get_logger(), "运动规划失败");
     }
@@ -387,6 +394,109 @@ geometry_msgs::msg::PoseArray PoseGoalPlanner::extractTrajectoryPoses(
     return pose_array;
 }
 
+void PoseGoalPlanner::handleGetTrajectoryPoses(
+    const std::shared_ptr<fairino3_v6_planner::srv::GetTrajectoryPoses::Request> request,
+    std::shared_ptr<fairino3_v6_planner::srv::GetTrajectoryPoses::Response> response
+) {
+    RCLCPP_INFO(this->get_logger(), "收到轨迹关键点服务请求");
+
+    // 检查MoveGroup是否已初始化
+    if (!move_group_) {
+        if (!initializationAttempted_) {
+            RCLCPP_INFO(this->get_logger(), "MoveGroup未初始化，尝试初始化");
+            initializeMoveItComponents();
+            
+            // 给一些时间让初始化完成
+            std::this_thread::sleep_for(std::chrono::seconds(3));
+            
+            if (!move_group_) {
+                response->success = false;
+                response->status_message = "无法初始化MoveGroup组件";
+                RCLCPP_ERROR(this->get_logger(), "服务无法执行：MoveGroup组件初始化失败");
+                return;
+            }
+        } else {
+            response->success = false;
+            response->status_message = "MoveGroup组件未初始化";
+            RCLCPP_ERROR(this->get_logger(), "服务无法执行：MoveGroup组件未初始化");
+            return;
+        }
+    }
+
+    // 确保位姿参考坐标系匹配
+    geometry_msgs::msg::PoseStamped target_pose = request->target_pose;
+    if (target_pose.header.frame_id.empty()) {
+        target_pose.header.frame_id = "base_link";
+        RCLCPP_WARN(
+            this->get_logger(),
+            "目标位姿没有指定参考坐标系，默认使用 'base_link'"
+        );
+    }
+
+    // 进行运动规划
+    bool planning_success = planToPose(target_pose);
+    
+    // 设置响应
+    response->success = planning_success;
+    
+    if (planning_success) {
+        // 提取并返回轨迹关键点
+        response->trajectory_poses = extractTrajectoryPoses(current_plan_.trajectory_);
+        response->trajectory_poses.header.stamp = this->now();
+        response->trajectory_poses.header.frame_id = target_pose.header.frame_id;
+        response->status_message = "规划成功";
+        
+        RCLCPP_INFO(
+            this->get_logger(),
+            "返回 %zu 个轨迹关键点",
+            response->trajectory_poses.poses.size()
+        );
+    } else {
+        response->status_message = "规划失败";
+        RCLCPP_ERROR(this->get_logger(), "无法规划到目标位姿");
+    }
+}
+
+void PoseGoalPlanner::initializeMoveItComponents() {
+    RCLCPP_INFO(this->get_logger(), "开始初始化MoveIt组件...");
+    initializationAttempted_ = true;
+    
+    try {
+        move_group_ = std::make_shared<
+            moveit::planning_interface::MoveGroupInterface>(
+            this->shared_from_this(),
+            planning_group_
+        );
+        if (debug_) {
+            RCLCPP_INFO(this->get_logger(), "已创建 MoveGroupInterface");
+        }
+        
+        planning_scene_interface_ = std::make_shared<
+            moveit::planning_interface::PlanningSceneInterface>();
+        if (debug_) {
+            RCLCPP_INFO(this->get_logger(), "已创建 PlanningSceneInterface");
+        }
+        
+        // 设置规划参数
+        move_group_->setPlanningTime(5.0);
+        move_group_->setNumPlanningAttempts(10);
+        move_group_->setMaxVelocityScalingFactor(0.5);
+        move_group_->setMaxAccelerationScalingFactor(0.5);
+        move_group_->setEndEffectorLink(end_effector_link_);
+        
+        if (debug_) {
+            RCLCPP_INFO(this->get_logger(), "已设置规划参数");
+        }
+        
+        RCLCPP_INFO(this->get_logger(), "MoveIt组件初始化完成");
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR(
+            this->get_logger(),
+            "MoveIt组件初始化失败: %s",
+            e.what()
+        );
+    }
+}
 } // namespace fairino3_v6_planner
 
 // 主函数入口点

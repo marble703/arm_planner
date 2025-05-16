@@ -12,6 +12,7 @@
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include "fairino3_v6_planner/srv/get_trajectory_poses.hpp"
 
 namespace fairino3_v6_planner {
 
@@ -46,12 +47,23 @@ private:
     // ROS 2发布者
     rclcpp::Publisher<moveit_msgs::msg::DisplayTrajectory>::SharedPtr
         display_trajectory_publisher_;
-    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr
-        trajectory_poses_publisher_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr
         planning_success_publisher_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr
         planning_status_publisher_;
+        
+    // 轨迹关键点服务
+    rclcpp::Service<fairino3_v6_planner::srv::GetTrajectoryPoses>::SharedPtr
+        trajectory_poses_service_;
+    
+    // 服务回调
+    void handleGetTrajectoryPoses(
+        const std::shared_ptr<fairino3_v6_planner::srv::GetTrajectoryPoses::Request> request,
+        std::shared_ptr<fairino3_v6_planner::srv::GetTrajectoryPoses::Response> response);
+
+    // 初始化MoveIt组件
+    void initializeMoveItComponents();
+    bool initializationAttempted_ = false;
 
     // 配置参数
     std::string planning_group_;

@@ -1,0 +1,7 @@
+# 请求：目标位姿
+geometry_msgs/PoseStamped target_pose
+---
+# 响应：轨迹关键点数组
+geometry_msgs/PoseArray trajectory_poses
+bool success
+string status_message

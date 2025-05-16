@@ -6,10 +6,12 @@
 2. **fairino3_v6_moveit2_config**：MoveIt 2 配置包，使用 `moveit_setup_assistant` 自动生成的配置（SRDF、关节限位、运动学、控制器、OMPL 规划器等），并包含 `move_group` 和 `rviz2` 的启动文件。
 3. **fairino3_v6_planner**：自定义规划器节点和测试脚本：
    - C++ 实现 `PoseGoalPlanner` 节点，订阅目标位姿 (`target_pose`)，调用 MoveIt 2 接口进行路径规划，并发布规划轨迹。
-   - `scripts/` 目录下包含三种测试脚本：
+   - 提供轨迹关键点服务 (`get_trajectory_poses`)，接收目标位姿，返回规划轨迹的关键点。
+   - `scripts/` 目录下包含测试脚本：
      - `send_pose_goal.py`：发布笛卡尔空间目标位姿（`target_pose`）。
      - `send_joint_goal.py`：发布关节空间目标 (`joint_states`) 消息，用于测试关节规划。
      - `test_start_and_goal.py`：综合测试，先发布初始关节状态，再发布目标位姿，完成一次端到端的规划流程。
+     - `test_trajectory_service.py`：测试轨迹关键点服务，发送目标位姿并接收轨迹关键点。
    - `config/` 目录下包含可配置参数：
      - `config.yaml`：包含规划器配置参数，如最大轨迹点数量(max_points)等。
 
@@ -17,8 +19,9 @@
 
 ## 开发规划
 
-添加关节限位
-添加避障
+- 添加关节限位
+- 添加避障 
+- 添加 MoveIt 初始化重试
 
 ## 编译与依赖
 
@@ -89,9 +92,18 @@ ros2 run fairino3_v6_planner test_start_and_goal.py \
 2. 发布目标位姿触发规划；
 3. 输出规划结果并在 RViz2 中显示轨迹。
 
+### 4. 测试轨迹关键点服务
+
+```bash
+python3 src/fairino3_v6_planner/scripts/test_trajectory_service.py
+```
+
+- 脚本创建一个服务客户端，向 `get_trajectory_poses` 服务发送带有目标位姿的请求
+- 接收并打印规划结果，包括轨迹关键点数量和部分关键点位置
+
 ---
 
-## 外部话题接口
+## ROS2 接口
 
 本包暴露了以下 ROS 2 话题，可供外部节点发布/订阅，灵活触发规划并获取结果：
 
@@ -115,11 +127,16 @@ ros2 run fairino3_v6_planner test_start_and_goal.py \
 - `/planning_success` (std_msgs/Bool)：规划是否成功（true/false）。
 - `/planning_status` (std_msgs/String)：规划状态文字描述，例如 "规划成功" 或 "规划失败"。
 
-要查看并调试这些话题，可以使用：
+### 服务接口
+- `/get_trajectory_poses` (fairino3_v6_planner/srv/GetTrajectoryPoses)：提供轨迹关键点的服务
+  - 请求：目标位姿 (geometry_msgs/PoseStamped)
+  - 响应：轨迹关键点数组 (geometry_msgs/PoseArray)、成功标志 (bool) 和状态消息 (string)
+
+要查看消息，可以使用：
 ```bash
 ros2 topic echo /planning_success
 ros2 topic echo /planning_status
-ros2 topic echo /trajectory_poses
+ros2 service list | grep trajectory  # 查看可用服务
 ```
 
 ---
