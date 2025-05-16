@@ -10,17 +10,31 @@ namespace fairino3_v6_planner {
 
 PoseGoalPlanner::PoseGoalPlanner(const rclcpp::NodeOptions& options):
     Node("fairino3_v6_planner", options) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
     // 从参数获取配置
     this->declare_parameter("planning_group", "fairino3_v6_group");
     this->declare_parameter("end_effector_link", "wrist3_link");
-    this->declare_parameter("max_points", 100); // 默认值为100
     this->declare_parameter("debug", false);    // 默认值为false
+    this->declare_parameter("max_points", 100); // 默认值为100
 
     planning_group_ = this->get_parameter("planning_group").as_string();
     end_effector_link_ = this->get_parameter("end_effector_link").as_string();
-    this->max_points_ =
+    debug_ = this->get_parameter("debug").as_bool();
+    max_points_ =
         static_cast<size_t>(this->get_parameter("max_points").as_int());
-    this->debug_ = this->get_parameter("debug").as_bool();
+
+    // 调试
+    RCLCPP_DEBUG(
+        this->get_logger(),
+        "从配置中读取到的max_points: %zu",
+        max_points_
+    );
+    RCLCPP_DEBUG(
+        this->get_logger(),
+        "从配置中读取到的debug: %s",
+        debug_ ? "true" : "false"
+    );
 
     RCLCPP_INFO(
         this->get_logger(),
@@ -77,16 +91,23 @@ PoseGoalPlanner::PoseGoalPlanner(const rclcpp::NodeOptions& options):
                 this->shared_from_this(),
                 planning_group_
             );
+            if (debug_) {
+                RCLCPP_INFO(this->get_logger(), "已创建 MoveGroupInterface");
+            }
             planning_scene_interface_ = std::make_shared<
                 moveit::planning_interface::PlanningSceneInterface>();
-
+            if (debug_) {
+                RCLCPP_INFO(this->get_logger(), "已创建 PlanningSceneInterface");
+            }
             // 设置规划参数
             move_group_->setPlanningTime(5.0);
             move_group_->setNumPlanningAttempts(10);
             move_group_->setMaxVelocityScalingFactor(0.5);
             move_group_->setMaxAccelerationScalingFactor(0.5);
             move_group_->setEndEffectorLink(end_effector_link_);
-
+            if (debug_) {
+                RCLCPP_INFO(this->get_logger(), "已设置规划参数");
+            }
             RCLCPP_INFO(this->get_logger(), "MoveIt组件初始化完成");
         } catch (const std::exception& e) {
             RCLCPP_ERROR(
@@ -103,7 +124,7 @@ PoseGoalPlanner::PoseGoalPlanner(const rclcpp::NodeOptions& options):
 void PoseGoalPlanner::poseGoalCallback(
     const geometry_msgs::msg::PoseStamped::SharedPtr msg
 ) {
-    RCLCPP_INFO(this->get_logger(), "收到新的目标位姿");
+    RCLCPP_INFO(this->get_logger(), "\n\n\n收到新的目标位姿");
 
     // 检查MoveGroup是否已初始化
     if (!move_group_) {
@@ -273,9 +294,7 @@ geometry_msgs::msg::PoseArray PoseGoalPlanner::extractTrajectoryPoses(
     // 计算采样步长
     size_t step = 1;
     if (num_points > max_points_) {
-        step = num_points / max_points_;
-        if (step < 1)
-            step = 1;
+        step = num_points / (max_points_ - 1) + 1;
     }
 
     RCLCPP_INFO(

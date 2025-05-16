@@ -55,7 +55,19 @@ def generate_launch_description():
     # 加载规划器自定义配置
     planner_yaml = os.path.join(fairino3_v6_planner_dir, 'config', 'config.yaml')
     with open(planner_yaml, 'r') as file:
-        planner_config = yaml.safe_load(file)
+        planner_yaml_content = yaml.safe_load(file)
+        
+    # 尝试从嵌套结构中提取参数，如果失败则直接使用顶层参数
+    planner_config = {}
+    
+    # 先检查ROS 2标准格式 (/**:ros__parameters)
+    if planner_yaml_content and '/**' in planner_yaml_content and 'ros__parameters' in planner_yaml_content['/**']:
+        planner_config = planner_yaml_content['/**']['ros__parameters']
+    # 如果上面的格式不存在，尝试直接从顶层读取
+    elif planner_yaml_content:
+        for key in ['debug', 'max_points']:
+            if key in planner_yaml_content:
+                planner_config[key] = planner_yaml_content[key]
     
     # 规划器配置
     planning_pipelines_config = {
@@ -129,17 +141,24 @@ def generate_launch_description():
     )
     
     # 启动位姿目标规划器节点
+    # 构建基本参数字典
+    planner_params = {
+        'use_sim_time': use_sim_time,
+        'planning_group': 'fairino3_v6_group',
+        'end_effector_link': 'wrist3_link',
+    }
+    
+    # 添加从配置文件中读取的参数
+    for key, value in planner_config.items():
+        planner_params[key] = value
+        
     pose_goal_planner_node = Node(
         package='fairino3_v6_planner',
         executable='pose_goal_planner',
         name='pose_goal_planner',
         output='screen',
         parameters=[
-            {'use_sim_time': use_sim_time},
-            {'planning_group': 'fairino3_v6_group'},
-            {'end_effector_link': 'wrist3_link'},
-            # 从配置文件中加载参数
-            planner_config,
+            planner_params,  # 合并后的参数
             robot_description,
             robot_description_semantic,
             kinematics_config,
