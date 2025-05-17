@@ -14,7 +14,7 @@ class TrajectoryPosesClient(Node):
         self.get_logger().info('轨迹关键点服务客户端已创建，等待服务可用...')
         
         # 确保服务可用
-        while not self.client.wait_for_service(timeout_sec=1.0):
+        while not self.client.wait_for_service(timeout_sec=0.5):
             self.get_logger().info('等待服务可用...')
         
         self.get_logger().info('服务已可用')
@@ -62,10 +62,9 @@ def main():
                         
                         # 打印一些轨迹点信息
                         for i, pose in enumerate(response.trajectory_poses.poses):
-                            if i % 5 == 0 or i == len(response.trajectory_poses.poses) - 1:  # 每隔5个点打印一次，以及最后一个点
-                                client_node.get_logger().info(
-                                    f'点 {i}: 位置 ({pose.position.x:.4f}, {pose.position.y:.4f}, {pose.position.z:.4f})'
-                                )
+                            client_node.get_logger().info(
+                                f'点 {i}: 位置 ({pose.position.x:.4f}, {pose.position.y:.4f}, {pose.position.z:.4f})'
+                            )
                     else:
                         client_node.get_logger().error(f'请求失败: {response.status_message}')
                 except Exception as e:

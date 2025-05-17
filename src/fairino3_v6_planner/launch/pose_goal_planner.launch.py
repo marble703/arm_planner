@@ -177,7 +177,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'use_sim_time',
             default_value='true',
-            description='使用仿真时间（如果为false则使用系统时间）'),
+            description='使用仿真时间,如果为false则使用系统时间'),
 
         # 添加robot_state_publisher
         robot_state_publisher_node,
