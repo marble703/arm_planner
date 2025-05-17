@@ -6,6 +6,8 @@
 #include <tf2_eigen/tf2_eigen.hpp>
 #include <thread>
 #include "fairino3_v6_planner/srv/get_trajectory_poses.hpp"
+#include "fairino3_v6_planner/srv/get_joint_states.hpp"
+#include "fairino3_v6_planner/srv/get_joint_states.hpp"
 
 namespace fairino3_v6_planner {
 
@@ -78,10 +80,21 @@ PoseGoalPlanner::PoseGoalPlanner(const rclcpp::NodeOptions& options):
             std::placeholders::_2
         )
     );
+    
+    // 创建关节角度服务
+    joint_states_service_ = this->create_service<fairino3_v6_planner::srv::GetJointStates>(
+        "get_joint_states",
+        std::bind(
+            &PoseGoalPlanner::handleGetJointStates,
+            this,
+            std::placeholders::_1,
+            std::placeholders::_2
+        )
+    );
 
     RCLCPP_INFO(
         this->get_logger(),
-        "已订阅 'target_pose' 话题，创建结果发布话题，并提供'get_trajectory_poses'服务"
+        "已订阅 'target_pose' 话题，创建结果发布话题，并提供'get_trajectory_poses'和'get_joint_states'服务"
     );
 
     // 等待一段时间以确保MoveIt组件完全初始化
@@ -109,8 +122,10 @@ PoseGoalPlanner::PoseGoalPlanner(const rclcpp::NodeOptions& options):
             // 设置规划参数
             move_group_->setPlanningTime(5.0);
             move_group_->setNumPlanningAttempts(10);
-            move_group_->setMaxVelocityScalingFactor(0.5);
-            move_group_->setMaxAccelerationScalingFactor(0.5);
+            move_group_->setMaxVelocityScalingFactor(0.9);
+            move_group_->setMaxAccelerationScalingFactor(0.9);
+            move_group_->setGoalPositionTolerance(0.001);  // 1mm位置容差
+            move_group_->setGoalOrientationTolerance(0.01);  // ~0.6度方向容差
             move_group_->setEndEffectorLink(end_effector_link_);
             if (debug_) {
                 RCLCPP_INFO(this->get_logger(), "已设置规划参数");
@@ -451,6 +466,194 @@ void PoseGoalPlanner::handleGetTrajectoryPoses(
             "返回 %zu 个轨迹关键点",
             response->trajectory_poses.poses.size()
         );
+    } else {
+        response->status_message = "规划失败";
+        RCLCPP_ERROR(this->get_logger(), "无法规划到目标位姿");
+    }
+}
+
+void PoseGoalPlanner::handleGetJointStates(
+    const std::shared_ptr<fairino3_v6_planner::srv::GetJointStates::Request> request,
+    std::shared_ptr<fairino3_v6_planner::srv::GetJointStates::Response> response
+) {
+    RCLCPP_INFO(this->get_logger(), "收到关节角度服务请求");
+
+    // 检查MoveGroup是否已初始化
+    if (!move_group_) {
+        if (!initializationAttempted_) {
+            RCLCPP_INFO(this->get_logger(), "MoveGroup未初始化，尝试初始化");
+            initializeMoveItComponents();
+            
+            // 给一些时间让初始化完成
+            std::this_thread::sleep_for(std::chrono::seconds(3));
+            
+            if (!move_group_) {
+                response->success = false;
+                response->status_message = "无法初始化MoveGroup组件";
+                RCLCPP_ERROR(this->get_logger(), "服务无法执行：MoveGroup组件初始化失败");
+                return;
+            }
+        } else {
+            response->success = false;
+            response->status_message = "MoveGroup组件未初始化";
+            RCLCPP_ERROR(this->get_logger(), "服务无法执行：MoveGroup组件未初始化");
+            return;
+        }
+    }
+
+    // 确保位姿参考坐标系匹配
+    geometry_msgs::msg::PoseStamped target_pose = request->target_pose;
+    if (target_pose.header.frame_id.empty()) {
+        target_pose.header.frame_id = "base_link";
+        RCLCPP_WARN(
+            this->get_logger(),
+            "目标位姿没有指定参考坐标系，默认使用 'base_link'"
+        );
+    }
+
+    // 进行运动规划
+    bool planning_success = planToPose(target_pose);
+    
+    // 设置响应
+    response->success = planning_success;
+    
+    if (planning_success) {
+        // 获取规划结果中的关节状态
+        try {
+            // 从轨迹中提取每个关键点的关节状态
+            if (!current_plan_.trajectory_.joint_trajectory.points.empty()) {
+                const auto& joint_trajectory = current_plan_.trajectory_.joint_trajectory;
+                const auto& joint_names = joint_trajectory.joint_names;
+                const auto& trajectory_points = joint_trajectory.points;
+                
+                // 计算采样步长，类似于extractTrajectoryPoses方法
+                size_t num_points = trajectory_points.size();
+                size_t step = 1;
+                if (num_points > max_points_) {
+                    step = num_points / (max_points_ - 1) + 1;
+                }
+                
+                RCLCPP_INFO(
+                    this->get_logger(),
+                    "轨迹点总数: %zu, 步长: %zu",
+                    num_points,
+                    step
+                );
+                
+                // 为每个关键点创建一个关节状态消息
+                for (size_t i = 0; i < num_points; i += step) {
+                    sensor_msgs::msg::JointState joint_state;
+                    
+                    // 设置头信息
+                    joint_state.header.stamp = this->now();
+                    joint_state.header.frame_id = target_pose.header.frame_id;
+                    
+                    // 设置关节名称
+                    joint_state.name = joint_names;
+                    
+                    // 设置关节位置
+                    const auto& positions = trajectory_points[i].positions;
+                    joint_state.position.assign(positions.begin(), positions.end());
+                    
+                    // 如果轨迹点包含速度信息，也添加到关节状态
+                    const auto& velocities = trajectory_points[i].velocities;
+                    if (!velocities.empty()) {
+                        joint_state.velocity.assign(velocities.begin(), velocities.end());
+                    }
+                    
+                    // 如果轨迹点包含加速度信息，也添加到关节状态
+                    const auto& accelerations = trajectory_points[i].accelerations;
+                    if (!accelerations.empty()) {
+                        joint_state.effort.assign(accelerations.begin(), accelerations.end());
+                    }
+                    
+                    // 添加到响应
+                    response->trajectory_joint_states.push_back(joint_state);
+                }
+                
+                // 确保包含最后一个点
+                if (num_points > 0 && (num_points - 1) % step != 0) {
+                    size_t last_idx = num_points - 1;
+                    
+                    sensor_msgs::msg::JointState joint_state;
+                    
+                    // 设置头信息
+                    joint_state.header.stamp = this->now();
+                    joint_state.header.frame_id = target_pose.header.frame_id;
+                    
+                    // 设置关节名称
+                    joint_state.name = joint_names;
+                    
+                    // 设置关节位置
+                    const auto& positions = trajectory_points[last_idx].positions;
+                    joint_state.position.assign(positions.begin(), positions.end());
+                    
+                    // 如果轨迹点包含速度信息，也添加到关节状态
+                    const auto& velocities = trajectory_points[last_idx].velocities;
+                    if (!velocities.empty()) {
+                        joint_state.velocity.assign(velocities.begin(), velocities.end());
+                    }
+                    
+                    // 如果轨迹点包含加速度信息，也添加到关节状态
+                    const auto& accelerations = trajectory_points[last_idx].accelerations;
+                    if (!accelerations.empty()) {
+                        joint_state.effort.assign(accelerations.begin(), accelerations.end());
+                    }
+                    
+                    // 添加到响应
+                    response->trajectory_joint_states.push_back(joint_state);
+                }
+                
+                response->status_message = "规划成功，已返回轨迹关键点的关节状态";
+                
+                RCLCPP_INFO(
+                    this->get_logger(),
+                    "返回了 %zu 个关键点的关节状态",
+                    response->trajectory_joint_states.size()
+                );
+                
+                if (debug_ && !response->trajectory_joint_states.empty()) {
+                    // 打印第一个和最后一个关键点的关节状态作为调试信息
+                    const auto& first_joint_state = response->trajectory_joint_states.front();
+                    const auto& last_joint_state = response->trajectory_joint_states.back();
+                    
+                    std::stringstream ss_first;
+                    ss_first << "第一个关键点的关节角度: [";
+                    for (size_t i = 0; i < first_joint_state.position.size(); ++i) {
+                        ss_first << first_joint_state.position[i];
+                        if (i < first_joint_state.position.size() - 1) {
+                            ss_first << ", ";
+                        }
+                    }
+                    ss_first << "]";
+                    
+                    std::stringstream ss_last;
+                    ss_last << "最后一个关键点的关节角度: [";
+                    for (size_t i = 0; i < last_joint_state.position.size(); ++i) {
+                        ss_last << last_joint_state.position[i];
+                        if (i < last_joint_state.position.size() - 1) {
+                            ss_last << ", ";
+                        }
+                    }
+                    ss_last << "]";
+                    
+                    RCLCPP_INFO(this->get_logger(), "%s", ss_first.str().c_str());
+                    RCLCPP_INFO(this->get_logger(), "%s", ss_last.str().c_str());
+                }
+            } else {
+                response->success = false;
+                response->status_message = "规划成功但没有有效的关节轨迹";
+                RCLCPP_ERROR(this->get_logger(), "规划成功但没有有效的关节轨迹");
+            }
+        } catch (const std::exception& e) {
+            response->success = false;
+            response->status_message = std::string("处理关节状态时出错: ") + e.what();
+            RCLCPP_ERROR(
+                this->get_logger(),
+                "处理关节状态时出错: %s",
+                e.what()
+            );
+        }
     } else {
         response->status_message = "规划失败";
         RCLCPP_ERROR(this->get_logger(), "无法规划到目标位姿");

@@ -13,6 +13,8 @@
 #include "std_msgs/msg/string.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "fairino3_v6_planner/srv/get_trajectory_poses.hpp"
+#include "fairino3_v6_planner/srv/get_joint_states.hpp"
+#include "sensor_msgs/msg/joint_state.hpp"
 
 namespace fairino3_v6_planner {
 
@@ -56,10 +58,19 @@ private:
     rclcpp::Service<fairino3_v6_planner::srv::GetTrajectoryPoses>::SharedPtr
         trajectory_poses_service_;
     
+    // 关节角度服务
+    rclcpp::Service<fairino3_v6_planner::srv::GetJointStates>::SharedPtr
+        joint_states_service_;
+    
     // 服务回调
     void handleGetTrajectoryPoses(
         const std::shared_ptr<fairino3_v6_planner::srv::GetTrajectoryPoses::Request> request,
         std::shared_ptr<fairino3_v6_planner::srv::GetTrajectoryPoses::Response> response);
+        
+    // 关节角度服务回调
+    void handleGetJointStates(
+        const std::shared_ptr<fairino3_v6_planner::srv::GetJointStates::Request> request,
+        std::shared_ptr<fairino3_v6_planner::srv::GetJointStates::Response> response);
 
     // 初始化MoveIt组件
     void initializeMoveItComponents();

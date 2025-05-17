@@ -18,6 +18,7 @@ find_package(moveit_msgs REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 find_package(moveit_core REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 # 包含目录
 include_directories(include)
@@ -25,7 +26,8 @@ include_directories(include)
 # 生成自定义服务
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GetTrajectoryPoses.srv"
-  DEPENDENCIES geometry_msgs
+  "srv/GetJointStates.srv"
+  DEPENDENCIES geometry_msgs sensor_msgs
 )
 rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
@@ -39,6 +41,7 @@ ament_target_dependencies(pose_goal_planner
   tf2_geometry_msgs
   tf2_eigen
   moveit_core
+  sensor_msgs
 )
 target_link_libraries(pose_goal_planner "${cpp_typesupport_target}")
 
@@ -57,6 +60,7 @@ install(DIRECTORY
 # 安装Python脚本
 install(PROGRAMS
   scripts/pose_publisher.py
+  scripts/test_joint_states_service.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

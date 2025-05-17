@@ -7,11 +7,13 @@
 3. **fairino3_v6_planner**：自定义规划器节点和测试脚本：
    - C++ 实现 `PoseGoalPlanner` 节点，订阅目标位姿 (`target_pose`)，调用 MoveIt 2 接口进行路径规划，并发布规划轨迹。
    - 提供轨迹关键点服务 (`get_trajectory_poses`)，接收目标位姿，返回规划轨迹的关键点。
+   - 提供关节状态服务 (`get_joint_states`)，接收目标位姿，返回规划得到的关节角度（JointState）。
    - `scripts/` 目录下包含测试脚本：
      - `send_pose_goal.py`：发布笛卡尔空间目标位姿（`target_pose`）。
      - `send_joint_goal.py`：发布关节空间目标 (`joint_states`) 消息，用于测试关节规划。
      - `test_start_and_goal.py`：综合测试，先发布初始关节状态，再发布目标位姿，完成一次端到端的规划流程。
      - `test_trajectory_service.py`：测试轨迹关键点服务，发送目标位姿并接收轨迹关键点。
+     - `test_joint_states_service.py`：测试关节状态服务，发送目标位姿并接收对应的关节角度。
    - `config/` 目录下包含可配置参数：
      - `config.yaml`：包含规划器配置参数，如最大轨迹点数量(max_points)等。
 
@@ -137,6 +139,60 @@ python3 src/fairino3_v6_planner/scripts/test_trajectory_service.py
 ros2 topic echo /planning_success
 ros2 topic echo /planning_status
 ros2 service list | grep trajectory  # 查看可用服务
+```
+
+---
+
+## 可用服务
+
+### 1. 轨迹关键点服务 (GetTrajectoryPoses)
+
+获取从当前位置到目标位置的离散轨迹点序列：
+
+```
+# 请求
+ros2 service call /get_trajectory_poses fairino3_v6_planner/srv/GetTrajectoryPoses "{target_pose: {header: {frame_id: 'base_link'}, pose: {position: {x: 0.3, y: 0.0, z: 0.5}, orientation: {w: 1.0, x: 0.0, y: 0.0, z: 0.0}}}}"
+```
+
+**服务定义**:
+```
+# 请求：目标位姿
+geometry_msgs/PoseStamped target_pose
+---
+# 响应：轨迹关键点、成功标志和状态消息
+geometry_msgs/PoseArray trajectory_poses
+bool success
+string status_message
+```
+
+### 2. 关节状态服务 (GetJointStates)
+
+获取从当前位置到目标位置的整个轨迹中，每个关键点的关节角度：
+
+```
+# 请求
+ros2 service call /get_joint_states fairino3_v6_planner/srv/GetJointStates "{target_pose: {header: {frame_id: 'base_link'}, pose: {position: {x: 0.3, y: 0.0, z: 0.5}, orientation: {w: 1.0, x: 0.0, y: 0.0, z: 0.0}}}}"
+```
+
+**服务定义**:
+```
+# 请求：目标位姿
+geometry_msgs/PoseStamped target_pose
+---
+# 响应：轨迹中每个关键点的关节状态数组、成功标志和状态消息
+sensor_msgs/JointState[] trajectory_joint_states
+bool success
+string status_message
+```
+
+也可以使用测试脚本进行服务测试：
+
+```bash
+# 测试轨迹关键点服务
+ros2 run fairino3_v6_planner test_trajectory_service.py
+
+# 测试关节状态服务
+ros2 run fairino3_v6_planner test_joint_states_service.py
 ```
 
 ---

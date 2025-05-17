@@ -1,0 +1,7 @@
+# 请求：目标位姿
+geometry_msgs/PoseStamped target_pose
+---
+# 响应：关节角度数组（轨迹中每个关键点的关节状态）
+sensor_msgs/JointState[] trajectory_joint_states
+bool success
+string status_message
