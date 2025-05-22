@@ -6,7 +6,7 @@
   <description>
      An automatically generated package with all the configuration and launch files for using the fairino3_v6_robot with the MoveIt Motion Planning Framework
   </description>
-  <maintainer email="litao@frtech.fr">litao</maintainer>
+  <maintainer email="703342335@qq.com">Chen Yi'an</maintainer>
 
   <license>BSD</license>
 
@@ -14,7 +14,7 @@
   <url type="bugtracker">https://github.com/ros-planning/moveit2/issues</url>
   <url type="repository">https://github.com/ros-planning/moveit2</url>
 
-  <author email="litao@frtech.fr">litao</author>
+  <author email="703342335@qq.com">Chen Yi'an</author>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

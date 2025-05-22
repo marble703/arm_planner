@@ -5,9 +5,9 @@ moveit_setup_assistant_config:
   srdf:
     relative_path: config/fairino3_v6_robot.srdf
   package_settings:
-    author_name: litao
-    author_email: litao@frtech.fr
-    generated_timestamp: 1721281150
+    author_name: Chen Yi'an
+    author_email: 703342335@qq.com
+    generated_timestamp: 1747896192
   control_xacro:
     command:
       - position
@@ -16,3 +16,8 @@ moveit_setup_assistant_config:
   modified_urdf:
     xacros:
       - control_xacro
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
