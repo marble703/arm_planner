@@ -28,7 +28,6 @@
 ## 编译与依赖
 
 ```bash
-cd ~/arm/arm_planner
 rosdep install --from-paths src --ignore-src -r -y
 colcon build --packages-select fairino3_v6_planner fairino3_v6_moveit2_config fairino_description
 source install/setup.bash
